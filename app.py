@@ -8,7 +8,6 @@ from ai_handler import (
 )
 from score_manager import LeaderboardError, get_top_scores, save_score
 
-
 CREATOR_CREDIT = "טריוויה מאת המכבי ישראל בלעיש"
 
 
@@ -16,24 +15,148 @@ st.set_page_config(page_title="טריוויה לחנוכה", page_icon="🕎", l
 st.markdown(
     """
     <style>
+    .stApp {
+        background:
+            radial-gradient(ellipse at 12% 8%, rgba(245, 196, 91, 0.17), transparent 34rem),
+            linear-gradient(145deg, #fffdf8 0%, #f5f7fb 52%, #f8f1e8 100%);
+        color: #17243b;
+    }
+    [data-testid="stMainBlockContainer"] {
+        max-width: 860px;
+        padding-top: 2.2rem;
+    }
     html, body, [class*="st-"] {
         direction: rtl;
         text-align: right;
     }
-    .creator-credit {
+    .hero-card {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        margin: 0 0 2rem;
+        padding: clamp(1.7rem, 5vw, 3.2rem);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 28px;
+        background: linear-gradient(128deg, #172b4d 0%, #273d68 55%, #563d69 100%);
+        box-shadow: 0 22px 55px rgba(27, 40, 69, 0.2);
+        color: #fff;
         direction: rtl;
         text-align: right;
+        animation: hero-arrive 750ms cubic-bezier(.2, .75, .25, 1) both;
+    }
+    .hero-card::before {
+        position: absolute;
+        z-index: -1;
+        top: -8rem;
+        left: -5rem;
+        width: 21rem;
+        height: 21rem;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 205, 112, 0.3), transparent 68%);
+        content: "";
+        animation: glow-drift 8s ease-in-out infinite alternate;
+    }
+    .hero-icon {
+        display: inline-block;
+        margin-bottom: 0.7rem;
+        font-size: 2.5rem;
+        animation: lantern-float 3.2s ease-in-out infinite;
+    }
+    .hero-kicker {
+        margin: 0 0 0.4rem;
+        color: #f7d99a;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+    }
+    .hero-title {
+        margin: 0;
+        color: #fff;
+        font-size: clamp(2.1rem, 7vw, 3.7rem);
+        font-weight: 850;
+        line-height: 1.15;
+    }
+    .creator-credit {
+        margin: 0.8rem 0 0;
+        color: #dce5f5;
+        font-size: 1rem;
+    }
+    .hero-invite {
+        margin: 1.2rem 0 0.9rem;
+        color: #fff;
+        font-size: clamp(1.1rem, 3vw, 1.4rem);
+        font-weight: 650;
+    }
+    .prize-pill {
+        display: inline-block;
+        margin-top: 0.25rem;
+        padding: 0.55rem 1rem;
+        border: 1px solid rgba(255, 226, 164, 0.55);
+        border-radius: 999px;
+        background: rgba(255, 218, 145, 0.16);
+        color: #ffe4a8;
+        font-weight: 750;
+    }
+    .start-hint {
+        margin: 0 0 1.2rem;
+        color: #526078;
+        font-size: 1.05rem;
     }
     .app-footer {
         direction: rtl;
         text-align: right;
         margin-top: 3rem;
         padding-top: 1rem;
-        border-top: 1px solid rgba(128, 128, 128, 0.3);
+        border-top: 1px solid rgba(42, 57, 84, 0.16);
+        color: #657187;
+    }
+    [data-testid="stTextInput"] input,
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div {
+        border-radius: 14px;
+    }
+    [data-testid="stTextInput"] input:focus,
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within {
+        border-color: #536da5;
+        box-shadow: 0 0 0 2px rgba(83, 109, 165, 0.15);
     }
     div[data-testid="stButton"] > button {
         width: 100%;
         text-align: right;
+        min-height: 3rem;
+        border-radius: 14px;
+        font-weight: 650;
+        transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    }
+    div[data-testid="stButton"] > button:hover {
+        transform: translateY(-2px);
+        border-color: #8b9bc0;
+        box-shadow: 0 8px 18px rgba(35, 50, 79, 0.12);
+    }
+    div[data-testid="stButton"] > button[kind="primary"] {
+        border: 0;
+        background: linear-gradient(110deg, #8b2f48, #aa4660);
+        color: #fff;
+        box-shadow: 0 8px 20px rgba(139, 47, 72, 0.22);
+    }
+    @keyframes hero-arrive {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes lantern-float {
+        0%, 100% { transform: translateY(0) rotate(-3deg); }
+        50% { transform: translateY(-7px) rotate(3deg); }
+    }
+    @keyframes glow-drift {
+        from { transform: translate(0, 0) scale(0.94); }
+        to { transform: translate(1.5rem, 1rem) scale(1.08); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+        }
     }
     </style>
     """,
@@ -58,12 +181,23 @@ def _initialize_game_state() -> None:
 
 
 def _show_start_screen() -> None:
-    st.title("🕎🍩 טריוויה לחנוכה 🍩🕎")
     st.markdown(
-        f'<p class="creator-credit" dir="rtl">{CREATOR_CREDIT}</p>',
+        f"""
+        <section class="hero-card" dir="rtl">
+            <div class="hero-icon" aria-hidden="true">🕎</div>
+            <p class="hero-kicker">חגיגה של אור, ידע והפתעות</p>
+            <h1 class="hero-title">טריוויה לחנוכה 🍩</h1>
+            <p class="creator-credit">{CREATOR_CREDIT}</p>
+            <p class="hero-invite">ישראל בלעיש מזמין אתכם לחידון החנוכה</p>
+            <span class="prize-pill">🎁 מלווה בפרסים</span>
+        </section>
+        """,
         unsafe_allow_html=True,
     )
-    st.write("ברוכים הבאים! בדקו כמה אתם יודעים על חג החנוכה.")
+    st.markdown(
+        '<p class="start-hint" dir="rtl">בחרו את ההגדרות שלכם ובואו לבדוק כמה אתם יודעים על החג.</p>',
+        unsafe_allow_html=True,
+    )
 
     player_name = st.text_input("איך קוראים לכם?", value=st.session_state.player_name)
     difficulty = st.selectbox(
