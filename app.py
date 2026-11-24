@@ -9,6 +9,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 from score_manager import get_top_scores, save_score
 
 CREATOR = "טריוויה מאת המכבי ישראל בלעיש"
@@ -168,8 +169,15 @@ BANK = {
 }
 
 
+def get_api_key() -> str:
+    try:
+        return str(st.secrets["GEMINI_API_KEY"]).strip()
+    except (KeyError, StreamlitSecretNotFoundError, Exception):
+        return os.environ.get("GEMINI_API_KEY", "").strip()
+
+
 def get_questions(n: int, diff: Literal["קל", "בינוני", "קשה"]) -> List[HanukkahQuestion]:
-    key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY", "")).strip()
+    key = get_api_key()
     if key:
         client = genai.Client(api_key=key)
         prompt = f"צור {n} שאלות טריוויה על חנוכה ברמת {diff} בסגנון חרדי-תורני בעברית בלבד עם 4 אפשרויות."
@@ -204,4 +212,3 @@ def render_avatar() -> None:
 
 
 st.markdown("<style>.stApp{background:linear-gradient(180deg,#162b5c 0%,#0a132c 65%,#060b19 100%);color:#f8fafc;}</style>", unsafe_allow_html=True)
-st.markdown("<style>.block-container{direction:rtl;text-align:right;max-width:700px;padding-top:2rem;}</style>", unsafe_allow_html=True)
