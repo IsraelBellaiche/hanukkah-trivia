@@ -14,7 +14,10 @@ from score_manager import get_top_scores, save_score
 CREATOR = "טריוויה מאת המכבי ישראל בלעיש"
 st.set_page_config(page_title="טריוויה לחנוכה - ישראל בלעיש", page_icon="🕎", layout="centered")
 
-st.markdown("<style>html, body, p, h1, h2, h3, label, input { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
+st.markdown(
+    "<style>html, body, p, h1, h2, h3, label, input { direction: rtl; text-align: right; }</style>",
+    unsafe_allow_html=True,
+)
 
 
 class HanukkahQuestion(BaseModel):
@@ -200,7 +203,16 @@ def get_questions(n: int, diff: Literal["קל", "בינוני", "קשה"]) -> Li
     return random.sample(pool, k=min(n, len(pool)))
 
 
-for k, v in {"screen": "start", "name": "", "diff": "קל", "qs": [], "idx": 0, "score": 0, "ans": None, "saved": False}.items():
+for k, v in {
+    "screen": "start",
+    "name": "",
+    "diff": "קל",
+    "qs": [],
+    "idx": 0,
+    "score": 0,
+    "ans": None,
+    "saved": False,
+}.items():
     st.session_state.setdefault(k, v)
 
 if st.session_state.screen == "start":
@@ -211,4 +223,3 @@ if st.session_state.screen == "start":
             col1, col2, col3 = st.columns([1, 2, 1])
             col2.image(f"israel.{ext}", use_container_width=True)
             break
-    st.write("ברוכים הבאים! בחנו את ידיעותיכם בהלכות חנוכה, מנהגי החג וגבורת החשמונאים.")
