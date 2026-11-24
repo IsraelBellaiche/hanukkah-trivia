@@ -1,4 +1,3 @@
-import base64
 import os
 from pathlib import Path
 import random
@@ -14,6 +13,8 @@ from score_manager import get_top_scores, save_score
 
 CREATOR = "טריוויה מאת המכבי ישראל בלעיש"
 st.set_page_config(page_title="טריוויה לחנוכה - ישראל בלעיש", page_icon="🕎", layout="centered")
+
+st.markdown("<style>html, body, p, h1, h2, h3, label, input { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
 
 
 class HanukkahQuestion(BaseModel):
@@ -199,16 +200,15 @@ def get_questions(n: int, diff: Literal["קל", "בינוני", "קשה"]) -> Li
     return random.sample(pool, k=min(n, len(pool)))
 
 
-def render_avatar() -> None:
+for k, v in {"screen": "start", "name": "", "diff": "קל", "qs": [], "idx": 0, "score": 0, "ans": None, "saved": False}.items():
+    st.session_state.setdefault(k, v)
+
+if st.session_state.screen == "start":
+    st.title("🕎🍩 חידון חנוכה הממלכתי 🍩🕎")
+    st.subheader(f"✨ {CREATOR} ✨")
     for ext in ("jpg", "jpeg", "png", "webp"):
-        p = Path(f"israel.{ext}")
-        if p.exists():
-            b64 = base64.b64encode(p.read_bytes()).decode("utf-8")
-            st.markdown(
-                f'<div style="text-align:center;margin:14px 0;"><img src="data:image/jpeg;base64,{b64}" style="width:125px;height:125px;object-fit:cover;border-radius:50%;border:4px solid #f59e0b;"></div>',
-                unsafe_allow_html=True,
-            )
-            return
-
-
-st.markdown("<style>.stApp{background:linear-gradient(180deg,#162b5c 0%,#0a132c 65%,#060b19 100%);color:#f8fafc;}</style>", unsafe_allow_html=True)
+        if Path(f"israel.{ext}").exists():
+            col1, col2, col3 = st.columns([1, 2, 1])
+            col2.image(f"israel.{ext}", use_container_width=True)
+            break
+    st.write("ברוכים הבאים! בחנו את ידיעותיכם בהלכות חנוכה, מנהגי החג וגבורת החשמונאים.")
