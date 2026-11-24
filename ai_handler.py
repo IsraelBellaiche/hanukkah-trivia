@@ -1,6 +1,7 @@
 """Generate Hebrew Hanukkah trivia using Google's Gemini API."""
 
 import os
+import time
 from typing import List, Literal
 
 from google import genai
@@ -59,38 +60,45 @@ def generate_hanukkah_questions(
 """
 
     client = genai.Client(api_key=_get_api_key())
+    last_error = None
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=HanukkahQuestionSet,
-            ),
-        )
-    except (errors.APIError, ValidationError, ValueError) as error:
-        raise QuestionGenerationError(
-            f"שגיאה ביצירת השאלות: {error}"
-        ) from error
+    for model_name in ("gemini-3.8-flash", "gemini-3.8-flash-lite"):
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=HanukkahQuestionSet,
+                    ),
+                )
+                question_set = response.parsed
+                if not isinstance(question_set, HanukkahQuestionSet):
+                    raise QuestionGenerationError(
+                        "Gemini לא החזיר שאלות בפורמט הצפוי. נסו שוב."
+                    )
+                if len(question_set.questions) != num_questions:
+                    raise QuestionGenerationError(
+                        "Gemini החזיר מספר שאלות שונה מהמבוקש. נסו שוב."
+                    )
+                for question in question_set.questions:
+                    if (
+                        len(question.options) != 4
+                        or len(set(question.options)) != 4
+                        or question.correct_answer not in question.options
+                    ):
+                        raise QuestionGenerationError(
+                            "אחת השאלות שהתקבלו אינה כוללת ארבע אפשרויות ותשובה תקינה. נסו שוב."
+                        )
+                return question_set.questions
+            except QuestionGenerationError as error:
+                last_error = error
+                break
+            except (errors.APIError, ValidationError, ValueError) as error:
+                last_error = error
+                time.sleep(1.5)
 
-    question_set = response.parsed
-    if not isinstance(question_set, HanukkahQuestionSet):
-        raise QuestionGenerationError(
-            "Gemini לא החזיר שאלות בפורמט הצפוי. נסו שוב."
-        )
-    if len(question_set.questions) != num_questions:
-        raise QuestionGenerationError(
-            "Gemini החזיר מספר שאלות שונה מהמבוקש. נסו שוב."
-        )
-    for question in question_set.questions:
-        if (
-            len(question.options) != 4
-            or len(set(question.options)) != 4
-            or question.correct_answer not in question.options
-        ):
-            raise QuestionGenerationError(
-                "אחת השאלות שהתקבלו אינה כוללת ארבע אפשרויות ותשובה תקינה. נסו שוב."
-            )
-
-    return question_set.questions
+    raise QuestionGenerationError(
+        "השרת עמוס כרגע. המתינו כמה שניות ולחצו שוב על 'התחל משחק'."
+    ) from last_error
