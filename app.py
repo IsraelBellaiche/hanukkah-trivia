@@ -1,225 +1,100 @@
-import os
+import base64
 from pathlib import Path
-import random
-import time
-from typing import List, Literal
-
-from google import genai
-from google.genai import types
-from pydantic import BaseModel, Field
 import streamlit as st
-from streamlit.errors import StreamlitSecretNotFoundError
-from score_manager import get_top_scores, save_score
+from ai_handler import QuestionGenerationError, generate_hanukkah_questions
+from score_manager import LeaderboardError, get_top_scores, save_score
 
 CREATOR = "טריוויה מאת המכבי ישראל בלעיש"
 st.set_page_config(page_title="טריוויה לחנוכה - ישראל בלעיש", page_icon="🕎", layout="centered")
 
-st.markdown(
-    "<style>html, body, p, h1, h2, h3, label, input { direction: rtl; text-align: right; }</style>",
-    unsafe_allow_html=True,
-)
+if Path("style.css").exists():
+    st.markdown(f"<style>{Path('style.css').read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
 
-class HanukkahQuestion(BaseModel):
-    question: str = Field(description="שאלת טריוויה תורנית על חג החנוכה בעברית")
-    options: List[str] = Field(description="ארבע אפשרויות תשובה בעברית")
-    correct_answer: str = Field(description="התשובה הנכונה מתוך האפשרויות")
-    fun_fact: str = Field(description="פנינה תורנית קצרה בעברית")
+def get_avatar_tag() -> str:
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        p = Path(f"israel.{ext}")
+        if p.exists():
+            b64 = base64.b64encode(p.read_bytes()).decode("utf-8")
+            return f'<img src="data:image/jpeg;base64,{b64}" class="avatar-img" alt="ישראל בלעיש">'
+    return ""
 
 
-class HanukkahQuestionSet(BaseModel):
-    questions: List[HanukkahQuestion]
-
-
-BANK = {
-    "קל": [
-        HanukkahQuestion(
-            question="כמה נרות מדליקים בלילה השמיני של חנוכה (כולל השמש)?",
-            options=["8 נרות", "9 נרות", "7 נרות", "10 נרות"],
-            correct_answer="9 נרות",
-            fun_fact="מדליקים שמונה נרות כנגד ימי הנס ועוד נר אחד המשמש כשמש.",
-        ),
-        HanukkahQuestion(
-            question="מהן האותיות החרוטות על הסביבון בארץ ישראל?",
-            options=["נ, ג, ה, ש", "נ, ג, ה, פ", "ח, נ, ו, כ", "א, ב, ג, ד"],
-            correct_answer="נ, ג, ה, פ",
-            fun_fact="בארץ ישראל האותיות מסמלות נס גדול היה פה.",
-        ),
-        HanukkahQuestion(
-            question="באיזה תאריך עברי מתחיל חג החנוכה?",
-            options=["25 בכסלו", "15 בשבט", "14 באדר", "1 בתשרי"],
-            correct_answer="25 בכסלו",
-            fun_fact="ביום 25 בכסלו נחו החשמונאים מאויביהם וטיהרו את בית המקדש.",
-        ),
-        HanukkahQuestion(
-            question="באיזה צד מניחים את הנרות ומאיזה צד מדליקים?",
-            options=["מניחים מימין ומדליקים משמאל", "מניחים משמאל ומדליקים מימין", "מניחים ומדליקים מימין", "מהאמצע לצדדים"],
-            correct_answer="מניחים מימין ומדליקים משמאל",
-            fun_fact="מניחים מימין לשמאל ומדליקים משמאל לימין כדי להתחיל בנר החדש.",
-        ),
-        HanukkahQuestion(
-            question="כמה ברכות מברכים בהדלקת נרות חנוכה בלילה הראשון?",
-            options=["שלוש ברכות", "שתי ברכות", "ארבע ברכות", "ברכה אחת"],
-            correct_answer="שלוש ברכות",
-            fun_fact="בלילה הראשון מברכים להדליק נר חנוכה, שעשה ניסים ושהחיינו.",
-        ),
-        HanukkahQuestion(
-            question="מהו השמן המהודר ביותר להדלקת נרות חנוכה?",
-            options=["שמן זית זך", "שמן שומשום", "שמן אגוזים", "שעווה"],
-            correct_answer="שמן זית זך",
-            fun_fact="שמן זית מובחר משום שבו נעשה הנס במנורת המקדש.",
-        ),
-        HanukkahQuestion(
-            question="איזה הלל אומרים בתפילת שחרית בכל ימי החנוכה?",
-            options=["הלל שלם בברכה", "חצי הלל בלי ברכה", "הלל הגדול", "אין אומרים הלל"],
-            correct_answer="הלל שלם בברכה",
-            fun_fact="בכל שמונת ימי החנוכה גומרים את ההלל בברכה.",
-        ),
-        HanukkahQuestion(
-            question="איזה מאכל נהוג לאכול בחנוכה זכר לנס פך השמן?",
-            options=["סופגניות ולביבות", "אוזני המן", "חרוסת", "קרפלך"],
-            correct_answer="סופגניות ולביבות",
-            fun_fact="אוכלים מאכלים מטוגנים בשמן לזכר נס פך השמן.",
-        ),
-    ],
-    "בינוני": [
-        HanukkahQuestion(
-            question="כמה זמן לפחות צריכים נרות החנוכה לדלוק?",
-            options=["חצי שעה לפחות", "שעה שלמה", "רבע שעה", "עד חצות"],
-            correct_answer="חצי שעה לפחות",
-            fun_fact="שיעור הדלקת הנרות הוא חצי שעה לאחר צאת הכוכבים.",
-        ),
-        HanukkahQuestion(
-            question="מה מדליקים קודם בערב שבת חנוכה?",
-            options=["נרות חנוכה ואחר כך נרות שבת", "נרות שבת ואחר כך נרות חנוכה", "אין הבדל בסדר", "רק נרות שבת"],
-            correct_answer="נרות חנוכה ואחר כך נרות שבת",
-            fun_fact="עם הדלקת נרות שבת מקבלים שבת ולכן מקדימים נרות חנוכה.",
-        ),
-        HanukkahQuestion(
-            question="כמה נרות בסך הכול מדליקים בכל שמונת ימי החנוכה (כולל השמש)?",
-            options=["44 נרות", "36 נרות", "40 נרות", "48 נרות"],
-            correct_answer="44 נרות",
-            fun_fact="36 נרות המצווה ועוד 8 נרות שמש מסתכמים ב-44 נרות.",
-        ),
-        HanukkahQuestion(
-            question="איזו תפילה מוסיפים בעמידה ובברכת המזון בחנוכה?",
-            options=["על הנסים", "יעלה ויבוא", "אבינו מלכנו", "עננו"],
-            correct_answer="על הנסים",
-            fun_fact="נוסח על הנסים נאמר בתפילה ובברכת המזון כל שמונת הימים.",
-        ),
-        HanukkahQuestion(
-            question="באיזו מסכת בגמרא מופיעה הסוגיה המרכזית על חנוכה?",
-            options=["מסכת שבת", "מסכת מגילה", "מסכת סוכה", "מסכת ראש השנה"],
-            correct_answer="מסכת שבת",
-            fun_fact="במסכת שבת דף כא עמוד ב שואלת הגמרא מאי חנוכה.",
-        ),
-        HanukkahQuestion(
-            question="מי ששכח לומר על הנסים בעמידה ונזכר לאחר שעקר רגליו, מה דינו?",
-            options=["אינו חוזר", "חוזר לראש התפילה", "חוזר לרצה", "חוזר למודים"],
-            correct_answer="אינו חוזר",
-            fun_fact="השוכח על הנסים אינו חוזר ויכול להוסיפו בהרחמן שבברכת המזון.",
-        ),
-        HanukkahQuestion(
-            question="מדוע נהגו לאכול מאכלי חלב בחנוכה?",
-            options=["זכר למעשה יהודית והולופרנס", "כי לא היה בשר", "זכר למן במדבר", "כמו בשבועות"],
-            correct_answer="זכר למעשה יהודית והולופרנס",
-            fun_fact="יהודית השקתה את שר הצבא היווני חלב להרדימו והצילה את ירושלים.",
-        ),
-        HanukkahQuestion(
-            question="איזה פיוט מפורסם שרים מיד לאחר הדלקת הנרות?",
-            options=["מעוז צור ישועתי", "לכה דודי", "אדון עולם", "יגדל אלוקים חי"],
-            correct_answer="מעוז צור ישועתי",
-            fun_fact="ראשי הבתים של מעוז צור יוצרים את שם המחבר: מרדכי.",
-        ),
-    ],
-    "קשה": [
-        HanukkahQuestion(
-            question="באיזו מחלוקת נחלקו בית שמאי ובית הלל לגבי סדר ההדלקה?",
-            options=["פוחת והולך מול מוסיף והולך", "שמן זית מול שעווה", "בפנים מול בחוץ", "ברכה לפני מול אחרי"],
-            correct_answer="פוחת והולך מול מוסיף והולך",
-            fun_fact="ההלכה נפסקה כבית הלל שמעלין בקודש ומוסיפין והולכין.",
-        ),
-        HanukkahQuestion(
-            question="איזו קושיה מפורסמת שאל מרן הבית יוסף על שמונת ימי החנוכה?",
-            options=["מדוע חוגגים 8 ימים הרי השמן הספיק ליום הראשון בדרך הטבע", "מדוע מדליקים בשמן זית", "מדוע אוכלים סופגניות", "מדוע מברכים שהחיינו"],
-            correct_answer="מדוע חוגגים 8 ימים הרי השמן הספיק ליום הראשון בדרך הטבע",
-            fun_fact="קושיית הבית יוסף זכתה למאות תירוצים בספרי האחרונים.",
-        ),
-        HanukkahQuestion(
-            question="מה פירוש הכלל ההלכתי כבתה אין זקוק לה?",
-            options=["אם הנר כבה לאחר שהודלק כראוי אין חובה להדליקו שוב", "אסור לכבות נר חנוכה", "חייבים להדליק מיד אם כבה", "מדליקים רק בחוץ"],
-            correct_answer="אם הנר כבה לאחר שהודלק כראוי אין חובה להדליקו שוב",
-            fun_fact="הדלקה עושה מצווה ולכן אם כבה מאליו אינו חייב לחזור ולהדליק.",
-        ),
-        HanukkahQuestion(
-            question="כיצד נקרא היום השמיני והאחרון של חנוכה במסורת ישראל?",
-            options=["זאת חנוכה", "שמיני עצרת", "אסרו חג", "חנוכת המזבח"],
-            correct_answer="זאת חנוכה",
-            fun_fact="על שם קריאת התורה ביום זה הפותחת במילים זאת חנוכת המזבח.",
-        ),
-        HanukkahQuestion(
-            question="איזו פרשה בתורה קוראים בכל שמונת ימי החנוכה?",
-            options=["פרשת הנשיאים בפרשת נשא", "פרשת בהעלותך", "פרשת תרומה", "פרשת ויקהל"],
-            correct_answer="פרשת הנשיאים בפרשת נשא",
-            fun_fact="קוראים בקורבנות הנשיאים שהקריבו לחנוכת המשכן במדבר.",
-        ),
-        HanukkahQuestion(
-            question="מדוע נשים חייבות בהדלקת נר חנוכה אף שזו מצוות עשה שהזמן גרמא?",
-            options=["שאף הן היו באותו הנס", "משום נרות שבת", "מנהג בעלמא", "רק כשאינן נשואות"],
-            correct_answer="שאף הן היו באותו הנס",
-            fun_fact="חזל קבעו בשבת כג שנשים חייבות שאף הן היו באותו הנס.",
-        ),
-    ],
-}
-
-
-def get_api_key() -> str:
-    try:
-        return str(st.secrets["GEMINI_API_KEY"]).strip()
-    except (KeyError, StreamlitSecretNotFoundError, Exception):
-        return os.environ.get("GEMINI_API_KEY", "").strip()
-
-
-def get_questions(n: int, diff: Literal["קל", "בינוני", "קשה"]) -> List[HanukkahQuestion]:
-    key = get_api_key()
-    if key:
-        client = genai.Client(api_key=key)
-        prompt = f"צור {n} שאלות טריוויה על חנוכה ברמת {diff} בסגנון חרדי-תורני בעברית בלבד עם 4 אפשרויות."
-        for m in ("gemini-3.8-flash", "gemini-2.5-pro"):
-            try:
-                res = client.models.generate_content(
-                    model=m,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=HanukkahQuestionSet,
-                    ),
-                )
-                if res.parsed and len(res.parsed.questions) == n:
-                    return res.parsed.questions
-            except Exception:
-                time.sleep(0.3)
-    pool = BANK[diff]
-    return random.sample(pool, k=min(n, len(pool)))
-
-
-for k, v in {
-    "screen": "start",
-    "name": "",
-    "diff": "קל",
-    "qs": [],
-    "idx": 0,
-    "score": 0,
-    "ans": None,
-    "saved": False,
-}.items():
+for k, v in {"screen": "start", "name": "", "diff": "קל", "qs": [], "idx": 0, "score": 0, "ans": None, "saved": False}.items():
     st.session_state.setdefault(k, v)
 
 if st.session_state.screen == "start":
-    st.title("🕎🍩 חידון חנוכה הממלכתי 🍩🕎")
-    st.subheader(f"✨ {CREATOR} ✨")
-    for ext in ("jpg", "jpeg", "png", "webp"):
-        if Path(f"israel.{ext}").exists():
-            col1, col2, col3 = st.columns([1, 2, 1])
-            col2.image(f"israel.{ext}", use_container_width=True)
-            break
+    st.markdown(
+        f'<div class="royal-card"><h1 class="royal-title">🕎 חידון חנוכה הממלכתי 🕎</h1>'
+        f'{get_avatar_tag()}<div class="royal-badge">✨ {CREATOR} ✨</div>'
+        f'<p style="text-align:center;color:#cbd5e1;margin-top:10px;">בחנו את ידיעותיכם בהלכות חנוכה, מנהגי החג וגבורת החשמונאים</p></div>',
+        unsafe_allow_html=True,
+    )
+    name = st.text_input("מה שמכם?", value=st.session_state.name, placeholder="הקלידו את שמכם כאן...")
+    c1, c2 = st.columns(2)
+    diff = c1.selectbox("בחרו רמת קושי", ("קל", "בינוני", "קשה"))
+    num = c2.selectbox("כמה שאלות לשחק?", (5, 10))
+    if st.button("🔥 התחל משחק", type="primary"):
+        if not name.strip():
+            st.warning("נא להזין את השם שלכם לפני תחילת המשחק.")
+        else:
+            with st.spinner("מכינים עבורכם את השאלות..."):
+                try:
+                    qs = generate_hanukkah_questions(num, diff)
+                    st.session_state.update({"name": name.strip(), "diff": diff, "qs": qs, "idx": 0, "score": 0, "ans": None, "saved": False, "screen": "game"})
+                    st.rerun()
+                except QuestionGenerationError as e:
+                    st.error(str(e))
+
+elif st.session_state.screen == "game":
+    qs, idx = st.session_state.qs, st.session_state.idx
+    q = qs[idx]
+    st.markdown(f"### 🕎 בהצלחה, **{st.session_state.name}**! | ניקוד: **{st.session_state.score}**")
+    st.progress((idx + 1) / len(qs))
+    st.caption(f"שאלה {idx + 1} מתוך {len(qs)} | רמת קושי: {st.session_state.diff}")
+    st.markdown(f'<div class="question-card">{q.question}</div>', unsafe_allow_html=True)
+    cols = st.columns(2)
+    for i, opt in enumerate(q.options):
+        if cols[i % 2].button(opt, key=f"o-{idx}-{i}", disabled=st.session_state.ans is not None):
+            st.session_state.ans = opt
+            if opt == q.correct_answer:
+                st.session_state.score += 1
+            st.rerun()
+    if st.session_state.ans is not None:
+        if st.session_state.ans == q.correct_answer:
+            st.success("ישראל נהנה! ישראל בלעיש מאמין בך מאוד שאתה מצליח! 🎉🕯️")
+        else:
+            st.error(f"לא נורא, ישראל בלעיש עדיין מאמין בך! התשובה הנכונה היא: {q.correct_answer}")
+        st.info(f"💡 פנינה לחנוכה: {q.fun_fact}")
+        if st.button("לשאלה הבאה ⬅️", type="primary"):
+            st.session_state.idx += 1
+            st.session_state.ans = None
+            if st.session_state.idx >= len(qs):
+                st.session_state.screen = "end"
+            st.rerun()
+
+else:
+    tot, sc = len(st.session_state.qs), st.session_state.score
+    st.markdown(
+        f'<div class="royal-card"><h1 class="royal-title">אשריכם! סיימתם את החידון 🕎</h1>'
+        f'<p style="text-align:center;font-size:1.4rem;font-weight:800;color:#fde68a;margin-top:10px;">הניקוד שלכם: {sc} מתוך {tot}</p></div>',
+        unsafe_allow_html=True,
+    )
+    if not st.session_state.saved:
+        try:
+            save_score(st.session_state.name, sc, tot)
+            st.session_state.saved = True
+        except (LeaderboardError, ValueError):
+            pass
+    st.subheader("🏆 היכל התהילה - חמשת המקומות הראשונים")
+    try:
+        top = get_top_scores(5)
+        if top:
+            st.table([{"שם המשתתף": x["player_name"], "תוצאה": f'{x["score"]} מתוך {x["total_questions"]}'} for x in top])
+    except LeaderboardError:
+        pass
+    if st.button("🔄 שחקו שוב", type="primary"):
+        st.session_state.screen = "start"
+        st.rerun()
+
+st.markdown(f'<div style="text-align:center;margin-top:2.5rem;padding-top:1rem;border-top:1px solid #fbbf24;color:#cbd5e1;">🕎 {CREATOR} | חנוכה שמח ומאיר! 🕎</div>', unsafe_allow_html=True)
