@@ -34,45 +34,44 @@ st.markdown(
     <style>
     @import url('https://googleapis.com');
 
-    html, body, [class*="st-"], .stMarkdown, button, input, select {
-        font-family: 'Heebo', sans-serif !important;
-        direction: rtl;
-        text-align: right;
+    .stApp {
+        background: linear-gradient(180deg, #162b5c 0%, #0a132c 65%, #060b19 100%);
+        color: #f8fafc;
+        font-family: 'Heebo', sans-serif;
     }
 
-    .stApp {
-        background: radial-gradient(circle at top center, #162b5c 0%, #0a132c 60%, #060b19 100%);
-        color: #f8fafc;
+    .block-container {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Heebo', sans-serif;
+        max-width: 720px;
+        padding-top: 2.5rem;
     }
 
     .hero-card {
-        background: rgba(255, 255, 255, 0.06);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        border: 1px solid rgba(251, 191, 36, 0.35);
+        background: rgba(15, 23, 42, 0.85);
+        border: 2px solid rgba(251, 191, 36, 0.45);
         border-radius: 24px;
         padding: 28px 24px;
         text-align: center;
-        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
         margin-bottom: 24px;
     }
 
     .hero-title {
-        font-size: 2.4rem;
+        font-size: 2.3rem;
         font-weight: 900;
-        background: linear-gradient(135deg, #fde68a 0%, #f59e0b 50%, #fbbf24 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #fbbf24;
         margin: 0;
-        line-height: 1.2;
-        text-align: center !important;
+        line-height: 1.25;
+        text-align: center;
     }
 
     .hero-subtitle {
-        color: #cbd5e1;
+        color: #e2e8f0;
         font-size: 1.08rem;
-        margin-top: 8px;
-        text-align: center !important;
+        margin-top: 10px;
+        text-align: center;
     }
 
     .profile-wrapper {
@@ -82,18 +81,18 @@ st.markdown(
     }
 
     .profile-img {
-        width: 135px;
-        height: 135px;
+        width: 130px;
+        height: 130px;
         object-fit: cover;
         border-radius: 50%;
         border: 4px solid #f59e0b;
-        box-shadow: 0 0 25px rgba(245, 158, 11, 0.55);
+        box-shadow: 0 0 24px rgba(245, 158, 11, 0.55);
     }
 
     .creator-badge {
         display: inline-block;
-        background: rgba(251, 191, 36, 0.18);
-        border: 1px solid rgba(251, 191, 36, 0.5);
+        background: rgba(245, 158, 11, 0.2);
+        border: 1px solid rgba(251, 191, 36, 0.55);
         color: #fde68a;
         padding: 6px 18px;
         border-radius: 999px;
@@ -103,13 +102,13 @@ st.markdown(
     }
 
     .question-box {
-        background: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(251, 191, 36, 0.4);
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(251, 191, 36, 0.45);
         border-right: 6px solid #f59e0b;
         border-radius: 18px;
         padding: 22px;
         margin: 16px 0 22px 0;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
     }
 
     .question-text {
@@ -122,49 +121,41 @@ st.markdown(
 
     div[data-testid="stButton"] > button {
         width: 100%;
-        border-radius: 14px !important;
-        padding: 14px 18px !important;
-        font-size: 1.08rem !important;
-        font-weight: 700 !important;
-        border: 1px solid rgba(251, 191, 36, 0.35) !important;
-        background: rgba(30, 41, 59, 0.85) !important;
-        color: #f8fafc !important;
-        transition: all 0.2s ease !important;
-        text-align: center !important;
+        border-radius: 14px;
+        padding: 14px 18px;
+        font-size: 1.08rem;
+        font-weight: 700;
+        border: 1px solid rgba(251, 191, 36, 0.4);
+        background-color: #1e293b;
+        color: #f8fafc;
+        transition: all 0.2s ease;
     }
 
     div[data-testid="stButton"] > button:hover:not(:disabled) {
-        transform: translateY(-2px);
-        border-color: #fbbf24 !important;
-        background: rgba(245, 158, 11, 0.22) !important;
+        border-color: #fbbf24;
+        background-color: #334155;
     }
 
     div[data-testid="stButton"] > button[kind="primary"] {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-        color: #0f172a !important;
-        border: none !important;
-        font-weight: 900 !important;
-        font-size: 1.15rem !important;
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: #0f172a;
+        border: none;
+        font-weight: 900;
+        font-size: 1.15rem;
     }
 
-    div[data-testid="stButton"] > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
-    }
-
-    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] > div > div {
-        background-color: rgba(15, 23, 42, 0.85) !important;
-        color: #f8fafc !important;
-        border: 1px solid rgba(251, 191, 36, 0.4) !important;
-        border-radius: 12px !important;
+    div[data-testid="stTextInput"] label, div[data-testid="stSelectbox"] label {
+        color: #fde68a !important;
+        font-weight: 700 !important;
     }
 
     .app-footer {
         direction: rtl;
-        text-align: center !important;
+        text-align: center;
         margin-top: 3.5rem;
         padding-top: 1.2rem;
         border-top: 1px solid rgba(251, 191, 36, 0.25);
-        color: #94a3b8;
+        color: #cbd5e1;
         font-size: 0.95rem;
     }
     </style>
@@ -255,7 +246,7 @@ def _show_game_screen() -> None:
         st.markdown(f"### 🕎 בהצלחה, **{st.session_state.player_name}**!")
     with col_info2:
         st.markdown(
-            f"<div style='text-align:left; color:#fbbf24; font-weight:800; font-size:1.15rem; padding-top:12px;'>ניקוד: {st.session_state.score}</div>",
+            f"<div style='text-align:left; color:#fbbf24; font-weight:800; font-size:1.2rem; padding-top:12px;'>ניקוד: {st.session_state.score}</div>",
             unsafe_allow_html=True,
         )
 
@@ -309,7 +300,7 @@ def _show_end_screen() -> None:
         f"""
         <div class="hero-card">
             <h1 class="hero-title">אשריכם! סיימתם את החידון 🕎</h1>
-            <p style="font-size:1.45rem; font-weight:800; color:#fde68a; margin-top:12px;">
+            <p style="font-size:1.45rem; font-weight:800; color:#fde68a; margin-top:12px; text-align:center;">
                 הניקוד שלכם: {score} מתוך {total_questions}
             </p>
         </div>
@@ -317,3 +308,29 @@ def _show_end_screen() -> None:
         unsafe_allow_html=True,
     )
 
+    if not st.session_state.score_saved:
+        try:
+            save_score(st.session_state.player_name, score, total_questions)
+        except (LeaderboardError, ValueError) as error:
+            st.error(str(error))
+        else:
+            st.session_state.score_saved = True
+
+    st.subheader("🏆 היכל התהילה - חמשת המקומות הראשונים")
+    try:
+        top_scores = get_top_scores(5)
+    except LeaderboardError as error:
+        st.error(str(error))
+        top_scores = []
+
+    if top_scores:
+        st.table(
+            [
+                {
+                    "שם המשתתף": item["player_name"],
+                    "תוצאה": f'{item["score"]} מתוך {item["total_questions"]}',
+                }
+                for item in top_scores
+            ]
+        )
+    else:
