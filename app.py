@@ -6,7 +6,7 @@ import time
 from typing import List, Literal
 
 from google import genai
-from google.genai import errors, types
+from google.genai import types
 from pydantic import BaseModel, Field
 import streamlit as st
 from score_manager import get_top_scores, save_score
@@ -206,14 +206,8 @@ def render_avatar() -> None:
             return
 
 
-st.markdown(
-    """
-    <style>
-    @import url('https://googleapis.com');
-    .stApp {
-        background: linear-gradient(180deg, #162b5c 0%, #0a132c 65%, #060b19 100%);
-        color: #f8fafc;
-        font-family: 'Heebo', sans-serif;
-    }
-    .block-container {
-        direction: rtl;
+CSS = (
+    "<style>"
+    "@import url('https://googleapis.com');"
+    ".stApp { background: linear-gradient(180deg, #162b5c 0%, #0a132c 65%, #060b19 100%); color: #f8fafc; font-family: 'Heebo', sans-serif; }"
+    ".block-container { direction: rtl; text-align: right; max-width: 700px; padding-top: 2rem; }"
