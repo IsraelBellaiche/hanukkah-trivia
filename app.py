@@ -196,18 +196,12 @@ def render_avatar() -> None:
         p = Path(f"israel.{ext}")
         if p.exists():
             b64 = base64.b64encode(p.read_bytes()).decode("utf-8")
-            html = (
-                '<div style="text-align:center;margin:14px 0;">'
-                f'<img src="data:image/jpeg;base64,{b64}" '
-                'style="width:125px;height:125px;object-fit:cover;border-radius:50%;border:4px solid #f59e0b;">'
-                "</div>"
+            st.markdown(
+                f'<div style="text-align:center;margin:14px 0;"><img src="data:image/jpeg;base64,{b64}" style="width:125px;height:125px;object-fit:cover;border-radius:50%;border:4px solid #f59e0b;"></div>',
+                unsafe_allow_html=True,
             )
-            st.markdown(html, unsafe_allow_html=True)
             return
 
 
-CSS = (
-    "<style>"
-    "@import url('https://googleapis.com');"
-    ".stApp { background: linear-gradient(180deg, #162b5c 0%, #0a132c 65%, #060b19 100%); color: #f8fafc; font-family: 'Heebo', sans-serif; }"
-    ".block-container { direction: rtl; text-align: right; max-width: 700px; padding-top: 2rem; }"
+st.markdown("<style>.stApp{background:linear-gradient(180deg,#162b5c 0%,#0a132c 65%,#060b19 100%);color:#f8fafc;}</style>", unsafe_allow_html=True)
+st.markdown("<style>.block-container{direction:rtl;text-align:right;max-width:700px;padding-top:2rem;}</style>", unsafe_allow_html=True)
