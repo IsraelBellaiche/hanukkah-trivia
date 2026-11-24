@@ -7,6 +7,7 @@ from ai_handler import (
     generate_hanukkah_questions,
 )
 from score_manager import LeaderboardError, get_top_scores, save_score
+from question_bank import HANUKKAH_QA
 
 CREATOR_CREDIT = "טריוויה מאת המכבי ישראל בלעיש"
 
@@ -110,6 +111,11 @@ st.markdown(
         border-top: 1px solid rgba(42, 57, 84, 0.16);
         color: #657187;
     }
+    [data-testid="stExpander"] {
+        border: 1px solid rgba(42, 57, 84, 0.14);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.62);
+    }
     [data-testid="stTextInput"] input,
     [data-testid="stSelectbox"] [data-baseweb="select"] > div {
         border-radius: 14px;
@@ -206,6 +212,14 @@ def _show_start_screen() -> None:
         index=("קל", "בינוני", "קשה").index(st.session_state.difficulty),
     )
     num_questions = st.selectbox("כמה שאלות לשחק?", (5, 10))
+
+    with st.expander(f"📚 לתרגול: {len(HANUKKAH_QA)} שאלות ותשובות על חנוכה"):
+        st.caption("מאגר לעיון ולתרגול. שאלות המשחק עצמו נוצרות בנפרד.")
+        qa_items = [
+            f"**{index}. {question}**  \nתשובה: {answer}"
+            for index, (question, answer) in enumerate(HANUKKAH_QA, start=1)
+        ]
+        st.markdown("\n\n".join(qa_items))
 
     if st.button("התחל משחק", type="primary"):
         if not player_name.strip():
