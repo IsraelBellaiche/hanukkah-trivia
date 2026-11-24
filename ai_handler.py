@@ -38,7 +38,7 @@ def _get_api_key() -> str:
             "לא נמצא מפתח Gemini. הגדירו GEMINI_API_KEY בקובץ secrets.toml "
             "או במשתני הסביבה."
         )
-    return api_key
+    return api_key.strip()
 
 
 def generate_hanukkah_questions(
@@ -58,38 +58,43 @@ def generate_hanukkah_questions(
 להופיע ביניהן בדיוק. שמור על עובדות מדויקות, מגוונות ומתאימות לחג.
 """
 
-    try:
-        client = genai.Client(api_key=_get_api_key())
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=HanukkahQuestionSet,
-            ),
-        )
-        question_set = response.parsed
-        if not isinstance(question_set, HanukkahQuestionSet):
-            raise QuestionGenerationError(
-                "Gemini לא החזיר שאלות בפורמט הצפוי. נסו שוב."
+    client = genai.Client(api_key=_get_api_key())
+    last_error = None
+
+    for model_name in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=HanukkahQuestionSet,
+                ),
             )
-        if len(question_set.questions) != num_questions:
-            raise QuestionGenerationError(
-                "Gemini החזיר מספר שאלות שונה מהמבוקש. נסו שוב."
-            )
-        for question in question_set.questions:
-            if (
-                len(question.options) != 4
-                or len(set(question.options)) != 4
-                or question.correct_answer not in question.options
-            ):
+            question_set = response.parsed
+            if not isinstance(question_set, HanukkahQuestionSet):
                 raise QuestionGenerationError(
-                    "אחת השאלות שהתקבלו אינה כוללת ארבע אפשרויות ותשובה תקינה. נסו שוב."
+                    "Gemini לא החזיר שאלות בפורמט הצפוי. נסו שוב."
                 )
-        return question_set.questions
-    except QuestionGenerationError:
-        raise
-    except (errors.APIError, ValidationError, ValueError) as error:
-        raise QuestionGenerationError(
-            "לא הצלחנו ליצור שאלות כרגע. בדקו את החיבור ואת מפתח ה-API ונסו שוב."
-        ) from error
+            if len(question_set.questions) != num_questions:
+                raise QuestionGenerationError(
+                    "Gemini החזיר מספר שאלות שונה מהמבוקש. נסו שוב."
+                )
+            for question in question_set.questions:
+                if (
+                    len(question.options) != 4
+                    or len(set(question.options)) != 4
+                    or question.correct_answer not in question.options
+                ):
+                    raise QuestionGenerationError(
+                        "אחת השאלות שהתקבלו אינה כוללת ארבע אפשרויות ותשובה תקינה. נסו שוב."
+                    )
+            return question_set.questions
+        except QuestionGenerationError as error:
+            last_error = error
+        except (errors.APIError, ValidationError, ValueError) as error:
+            last_error = error
+
+    raise QuestionGenerationError(
+        f"שגיאה ביצירת השאלות: {last_error}"
+    ) from last_error
