@@ -1,5 +1,3 @@
-"""Hebrew, RTL Hanukkah trivia game built with Streamlit - Luxury Royal & Gold UI."""
-
 import base64
 from pathlib import Path
 import streamlit as st
@@ -42,13 +40,11 @@ st.markdown(
         text-align: right;
     }
 
-    /* רקע מלכותי כחול עמוק עם זוהר עדין */
     .stApp {
         background: radial-gradient(circle at top center, #162b5c 0%, #0a132c 60%, #060b19 100%);
         color: #f8fafc;
     }
 
-    /* כרטיס זכוכית מרכזי */
     .hero-card {
         background: rgba(255, 255, 255, 0.06);
         backdrop-filter: blur(14px);
@@ -57,12 +53,12 @@ st.markdown(
         border-radius: 24px;
         padding: 28px 24px;
         text-align: center;
-        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45), inset 0 0 20px rgba(251, 191, 36, 0.08);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
         margin-bottom: 24px;
     }
 
     .hero-title {
-        font-size: 2.5rem;
+        font-size: 2.4rem;
         font-weight: 900;
         background: linear-gradient(135deg, #fde68a 0%, #f59e0b 50%, #fbbf24 100%);
         -webkit-background-clip: text;
@@ -74,12 +70,11 @@ st.markdown(
 
     .hero-subtitle {
         color: #cbd5e1;
-        font-size: 1.1rem;
+        font-size: 1.08rem;
         margin-top: 8px;
         text-align: center !important;
     }
 
-    /* תמונת הפרופיל שלך במסגרת זהב */
     .profile-wrapper {
         display: flex;
         justify-content: center;
@@ -97,7 +92,7 @@ st.markdown(
 
     .creator-badge {
         display: inline-block;
-        background: linear-gradient(90deg, rgba(245,158,11,0.2), rgba(251,191,36,0.35), rgba(245,158,11,0.2));
+        background: rgba(251, 191, 36, 0.18);
         border: 1px solid rgba(251, 191, 36, 0.5);
         color: #fde68a;
         padding: 6px 18px;
@@ -107,9 +102,8 @@ st.markdown(
         margin-top: 6px;
     }
 
-    /* כרטיס שאלה */
     .question-box {
-        background: rgba(15, 23, 42, 0.75);
+        background: rgba(15, 23, 42, 0.8);
         border: 1px solid rgba(251, 191, 36, 0.4);
         border-right: 6px solid #f59e0b;
         border-radius: 18px;
@@ -119,14 +113,13 @@ st.markdown(
     }
 
     .question-text {
-        font-size: 1.35rem;
+        font-size: 1.32rem;
         font-weight: 800;
         color: #ffffff;
         margin: 0;
         line-height: 1.5;
     }
 
-    /* עיצוב כפתורי תשובות */
     div[data-testid="stButton"] > button {
         width: 100%;
         border-radius: 14px !important;
@@ -136,8 +129,7 @@ st.markdown(
         border: 1px solid rgba(251, 191, 36, 0.35) !important;
         background: rgba(30, 41, 59, 0.85) !important;
         color: #f8fafc !important;
-        transition: all 0.22s ease !important;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+        transition: all 0.2s ease !important;
         text-align: center !important;
     }
 
@@ -145,25 +137,20 @@ st.markdown(
         transform: translateY(-2px);
         border-color: #fbbf24 !important;
         background: rgba(245, 158, 11, 0.22) !important;
-        box-shadow: 0 8px 20px rgba(245, 158, 11, 0.25) !important;
     }
 
-    /* כפתור ראשי (התחל משחק / לשאלה הבאה) */
     div[data-testid="stButton"] > button[kind="primary"] {
         background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
         color: #0f172a !important;
         border: none !important;
         font-weight: 900 !important;
         font-size: 1.15rem !important;
-        box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4) !important;
     }
 
     div[data-testid="stButton"] > button[kind="primary"]:hover {
         background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
-        transform: translateY(-2px);
     }
 
-    /* שדות קלט */
     div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] > div > div {
         background-color: rgba(15, 23, 42, 0.85) !important;
         color: #f8fafc !important;
@@ -171,7 +158,6 @@ st.markdown(
         border-radius: 12px !important;
     }
 
-    /* כותרת תחתונה */
     .app-footer {
         direction: rtl;
         text-align: center !important;
@@ -264,11 +250,14 @@ def _show_game_screen() -> None:
     question = questions[question_index]
     total_questions = len(questions)
 
-    col_info1, col_info2 = st.columns([2, 1])
+    col_info1, col_info2 = st.columns(2)
     with col_info1:
         st.markdown(f"### 🕎 בהצלחה, **{st.session_state.player_name}**!")
     with col_info2:
-        st.markdown(f"<div style='text-align:left; color:#fbbf24; font-weight:800; font-size:1.15rem;'>ניקוד: {st.session_state.score}</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div style='text-align:left; color:#fbbf24; font-weight:800; font-size:1.15rem; padding-top:12px;'>ניקוד: {st.session_state.score}</div>",
+            unsafe_allow_html=True,
+        )
 
     st.progress((question_index + 1) / total_questions)
     st.caption(f"שאלה {question_index + 1} מתוך {total_questions} | רמת קושי: {st.session_state.difficulty}")
@@ -307,3 +296,24 @@ def _show_game_screen() -> None:
         if st.button("לשאלה הבאה ⬅️", type="primary"):
             st.session_state.question_index += 1
             st.session_state.selected_answer = None
+            if st.session_state.question_index >= total_questions:
+                st.session_state.screen = "end"
+            st.rerun()
+
+
+def _show_end_screen() -> None:
+    total_questions = len(st.session_state.questions)
+    score = st.session_state.score
+
+    st.markdown(
+        f"""
+        <div class="hero-card">
+            <h1 class="hero-title">אשריכם! סיימתם את החידון 🕎</h1>
+            <p style="font-size:1.45rem; font-weight:800; color:#fde68a; margin-top:12px;">
+                הניקוד שלכם: {score} מתוך {total_questions}
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
