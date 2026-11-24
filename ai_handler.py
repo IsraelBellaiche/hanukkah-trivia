@@ -1,6 +1,7 @@
-"""Generate Hebrew Hanukkah trivia using Google's Gemini API."""
+"""Generate Hebrew Hanukkah trivia using Google's Gemini API with local fallback."""
 
 import os
+import random
 import time
 from typing import List, Literal
 
@@ -26,79 +27,167 @@ class QuestionGenerationError(Exception):
     """Raised when questions cannot be generated or validated."""
 
 
-def _get_api_key() -> str:
-    try:
-        api_key = st.secrets["GEMINI_API_KEY"]
-    except (KeyError, StreamlitSecretNotFoundError):
-        api_key = None
-    if not api_key:
-        api_key = os.environ.get("GEMINI_API_KEY")
-
-    if not api_key:
-        raise QuestionGenerationError(
-            "לא נמצא מפתח Gemini. הגדירו GEMINI_API_KEY בקובץ secrets.toml "
-            "או במשתני הסביבה."
-        )
-    return api_key.strip()
-
-
-def generate_hanukkah_questions(
-    num_questions: int, difficulty: Literal["קל", "בינוני", "קשה"]
-) -> List[HanukkahQuestion]:
-    """Generate validated Hebrew Hanukkah questions at the requested difficulty."""
-    if num_questions not in (1, 5, 10):
-        raise ValueError("מספר השאלות חייב להיות 1, 5 או 10.")
-    if difficulty not in ("קל", "בינוני", "קשה"):
-        raise ValueError("רמת הקושי חייבת להיות קל, בינוני או קשה.")
-
-    prompt = f"""
-צור בדיוק {num_questions} שאלות טריוויה מקוריות על חג החנוכה.
-רמת הקושי: {difficulty}.
-כתוב את כל השאלות, האפשרויות, התשובות והעובדות המעניינות בעברית בלבד.
-לכל שאלה חייבות להיות בדיוק ארבע אפשרויות שונות, והתשובה הנכונה חייבת
-להופיע ביניהן בדיוק. שמור על עובדות מדויקות, מגוונות ומתאימות לחג.
-"""
-
-    client = genai.Client(api_key=_get_api_key())
-    last_error = None
-
-    for model_name in ("gemini-3.8-flash", "gemini-3.8-flash-lite"):
-        for attempt in range(2):
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=HanukkahQuestionSet,
-                    ),
-                )
-                question_set = response.parsed
-                if not isinstance(question_set, HanukkahQuestionSet):
-                    raise QuestionGenerationError(
-                        "Gemini לא החזיר שאלות בפורמט הצפוי. נסו שוב."
-                    )
-                if len(question_set.questions) != num_questions:
-                    raise QuestionGenerationError(
-                        "Gemini החזיר מספר שאלות שונה מהמבוקש. נסו שוב."
-                    )
-                for question in question_set.questions:
-                    if (
-                        len(question.options) != 4
-                        or len(set(question.options)) != 4
-                        or question.correct_answer not in question.options
-                    ):
-                        raise QuestionGenerationError(
-                            "אחת השאלות שהתקבלו אינה כוללת ארבע אפשרויות ותשובה תקינה. נסו שוב."
-                        )
-                return question_set.questions
-            except QuestionGenerationError as error:
-                last_error = error
-                break
-            except (errors.APIError, ValidationError, ValueError) as error:
-                last_error = error
-                time.sleep(1.5)
-
-    raise QuestionGenerationError(
-        "השרת עמוס כרגע. המתינו כמה שניות ולחצו שוב על 'התחל משחק'."
-    ) from last_error
+FALLBACK_QUESTIONS = {
+    "קל": [
+        HanukkahQuestion(
+            question="כמה נרות מדליקים בחנוכייה ביום השמיני של חנוכה (כולל השמש)?",
+            options=["8 נרות", "9 נרות", "7 נרות", "10 נרות"],
+            correct_answer="9 נרות",
+            fun_fact="ביום השמיני מדליקים 8 נרות כנגד ימי החג, ועוד נר אחד נוסף המשמש כשמש.",
+        ),
+        HanukkahQuestion(
+            question="איזה מאכל מסורתי נהוג לאכול בחנוכה זכר לנס פך השמן?",
+            options=["אוזני המן", "סופגנייה", "חרוסת", "קרפלך"],
+            correct_answer="סופגנייה",
+            fun_fact="מאכלים המטוגנים בשמן עמוק, כמו סופגניות ולביבות, מזכירים את פך השמן שהספיק לשמונה ימים.",
+        ),
+        HanukkahQuestion(
+            question="מהן האותיות המופיעות על הסביבון בישראל?",
+            options=["נ, ג, ה, ש", "נ, ג, ה, פ", "ח, נ, ו, כ", "א, ב, ג, ד"],
+            correct_answer="נ, ג, ה, פ",
+            fun_fact="בישראל האותיות מסמלות 'נס גדול היה פה', ואילו בחוץ לארץ מופיעה האות ש' ('שם').",
+        ),
+        HanukkahQuestion(
+            question="באיזה תאריך עברי מתחיל חג החנוכה?",
+            options=["כ\"ה בכסלו", "ט\"ו בשבט", "י\"ד באדר", "א' בתשרי"],
+            correct_answer="כ\"ה בכסלו",
+            fun_fact="השם חנוכה מפורש לעיתים כ'חנו כ\"ה' – כלומר ביום כ\"ה בכסלו נחו החשמונאים מאויביהם.",
+        ),
+        HanukkahQuestion(
+            question="מי הוביל את מרד החשמונאים בתחילתו?",
+            options=["מתתיהו ובניו", "שמשון הגיבור", "דוד המלך", "בר כוכבא"],
+            correct_answer="מתתיהו ובניו",
+            fun_fact="מתתיהו הכהן מהעיר מודיעין החל את המרד, ואחרי מותו הנהיג אותו בנו יהודה המכבי.",
+        ),
+        HanukkahQuestion(
+            question="מהו המאכל המלוח הנפוץ ביותר בחג החנוכה העשוי מתפוחי אדמה?",
+            options=["לביבה (לטקס)", "מצה בריי", "בורקס", "קוגל"],
+            correct_answer="לביבה (לטקס)",
+            fun_fact="בעבר הכינו לביבות מגבינה, ורק לאחר שתפוחי האדמה הגיעו לאירופה הפכו לביבות תפוחי האדמה למסורת.",
+        ),
+        HanukkahQuestion(
+            question="היכן מצאו המכבים את פך השמן הטהור?",
+            options=["בבית המקדש", "במערת המכפלה", "במצדה", "ביריחו"],
+            correct_answer="בבית המקדש",
+            fun_fact="הפך נמצא חתום בחותמו של הכהן הגדול, מה שהעיד שהשמן שבו לא נטמא.",
+        ),
+        HanukkahQuestion(
+            question="באיזה צד של החנוכייה מתחילים להניח את הנרות?",
+            options=["מימין לשמאל", "משמאל לימין", "מהאמצע לצדדים", "אין חשיבות לסדר"],
+            correct_answer="מימין לשמאל",
+            fun_fact="מניחים את הנרות מימין לשמאל, אך מדליקים אותם משמאל לימין – כך שתמיד מתחילים בנר החדש.",
+        ),
+        HanukkahQuestion(
+            question="מה משמעות הכינוי 'מכבי' שניתן ליהודה?",
+            options=["מי כמוך באלים ה'", "מלך כל ישראל", "מגן כל בית ישראל", "מנצח בקרב ירושלים"],
+            correct_answer="מי כמוך באלים ה'",
+            fun_fact="השם מכבי הוא ראשי תיבות של הפסוק 'מי כמוך באלים ה'', וגם מזכיר את המילה 'מקבת' (פטיש).",
+        ),
+        HanukkahQuestion(
+            question="איזה שיר חנוכה מתחיל במילים 'מעוז צור ישועתי'?",
+            options=["פיוט מסורתי לאחר ההדלקה", "שיר של נעמי שמר", "המנון מדינת ישראל", "שיר ילדים על סביבון"],
+            correct_answer="פיוט מסורתי לאחר ההדלקה",
+            fun_fact="הפיוט 'מעוז צור' חובר באשכנז בימי הביניים, וראשי הבתים שלו יוצרים את השם 'מרדכי'.",
+        ),
+    ],
+    "בינוני": [
+        HanukkahQuestion(
+            question="איזו אימפריה שלטה בארץ ישראל בתקופת מרד החשמונאים?",
+            options=["האימפריה הסלאוקית (היוונים)", "האימפריה הרומית", "האימפריה הבבלית", "האימפריה הפרסית"],
+            correct_answer="האימפריה הסלאוקית (היוונים)",
+            fun_fact="הסלאוקים היו יורשיו של אלכסנדר מוקדון ששלטו בסוריה ובארץ ישראל בראשות אנטיוכוס הרביעי.",
+        ),
+        HanukkahQuestion(
+            question="מה היה שמו של מלך יוון שגזר גזירות שמד על היהודים?",
+            options=["אנטיוכוס הרביעי (אפיפנס)", "אלכסנדר מוקדון", "טיטוס", "נבוכדנצר"],
+            correct_answer="אנטיוכוס הרביעי (אפיפנס)",
+            fun_fact="אנטיוכוס כינה את עצמו 'אפיפנס' (התגלות האל), אך מתנגדיו כינו אותו בלעג 'אפימנס' (המשוגע).",
+        ),
+        HanukkahQuestion(
+            question="באיזו עיר פרץ מרד החשמונאים?",
+            options=["מודיעין", "ירושלים", "צפת", "חברון"],
+            correct_answer="מודיעין",
+            fun_fact="במודיעין סירב מתתיהו להקריב קורבן לאלילים והרג את שליח המלך היווני.",
+        ),
+        HanukkahQuestion(
+            question="מהו שמו של הספר החיצוני המתאר את אירועי מרד החשמונאים?",
+            options=["ספר מקבים", "ספר היובלים", "ספר יהודית", "מגילת אסתר"],
+            correct_answer="ספר מקבים",
+            fun_fact="ספרי מקבים א' וב' לא נכנסו לתנ\"ך, אך הם המקור ההיסטורי המרכזי לסיפור המרד.",
+        ),
+        HanukkahQuestion(
+            question="כמה ימים ארך טיהור בית המקדש וחגיגת חנוכת המזבח?",
+            options=["8 ימים", "7 ימים", "10 ימים", "12 ימים"],
+            correct_answer="8 ימים",
+            fun_fact="חגיגת חנוכת המקדש נמשכה שמונה ימים, בדומה לחג הסוכות שלא נחגג באותה שנה בגלל המלחמה.",
+        ),
+        HanukkahQuestion(
+            question="מי מהבאים אינו אחד מחמשת בניו של מתתיהו הכהן?",
+            options=["הורדוס", "יהודה", "יונתן", "אלעזר"],
+            correct_answer="הורדוס",
+            fun_fact="חמשת בני מתתיהו היו יוחנן, שמעון, יהודה, אלעזר ויונתן.",
+        ),
+        HanukkahQuestion(
+            question="איזו תפילה מיוחדת מוסיפים בתפילת העמידה ובברכת המזון בחנוכה?",
+            options=["על הנסים", "יעלה ויבוא", "אבינו מלכנו", "נשמת כל חי"],
+            correct_answer="על הנסים",
+            fun_fact="תפילת 'על הנסים' נאמרת רק בשני חגים: חנוכה ופורים.",
+        ),
+        HanukkahQuestion(
+            question="כמה נרות בסך הכול מדליקים במהלך כל שמונת ימי החנוכה (כולל השמש בכל יום)?",
+            options=["44 נרות", "36 נרות", "40 נרות", "48 נרות"],
+            correct_answer="44 נרות",
+            fun_fact="36 נרות המצווה (1+2+3+4+5+6+7+8) ועוד 8 נרות שמש מסתכמים ב-44 נרות.",
+        ),
+        HanukkahQuestion(
+            question="איזה אח מבין החשמונאים נהרג בקרב בית זכריה כשדקר פיל מלחמה מלמטה?",
+            options=["אלעזר החורני", "שמעון התרסי", "יוחנן הגדי", "יונתן הוופסי"],
+            correct_answer="אלעזר החורני",
+            fun_fact="אלעזר חשב שהמלך אנטיוכוס רוכב על הפיל המשוריין, זחל תחתיו ודקר אותו, אך הפיל נפל עליו.",
+        ),
+        HanukkahQuestion(
+            question="מה אסור לעשות לאור נרות החנוכה על פי ההלכה?",
+            options=["להשתמש בהם לעבודה או קריאה", "להסתכל עליהם", "לשיר לידם", "להדליק אותם בחלון"],
+            correct_answer="להשתמש בהם לעבודה או קריאה",
+            fun_fact="לכן מדליקים את השמש – כדי שאם מישהו ייהנה מהאור בחדר, הוא ייהנה מאור השמש ולא מנרות המצווה.",
+        ),
+    ],
+    "קשה": [
+        HanukkahQuestion(
+            question="מה היה שמו המקורי של הכהן הגדול המתייוון שהחליף את חוניו השלישי?",
+            options=["יאסון (יהושע)", "מנלאוס", "אלקימוס", "ליסיאס"],
+            correct_answer="יאסון (יהושע)",
+            fun_fact="יהושע שינה את שמו לשם היווני יאסון והקים בירושלים גימנסיון בסגנון יווני.",
+        ),
+        HanukkahQuestion(
+            question="באיזו מחלוקת הלכתית מפורסמת נחלקו בית שמאי ובית הלל לגבי הדלקת נרות חנוכה?",
+            options=["פוחת והולך מול מוסיף והולך", "הדלקה בשמן מול שעווה", "הדלקה בבית מול בחצר", "ברכה לפני מול אחרי ההדלקה"],
+            correct_answer="פוחת והולך מול מוסיף והולך",
+            fun_fact="בית שמאי סברו שביום הראשון מדליקים 8 נרות ופוחתים בכל יום, ואילו ההלכה נפסקה כבית הלל שמוסיפים והולכים.",
+        ),
+        HanukkahQuestion(
+            question="מה היה כינויו של שמעון, בנו של מתתיהו שהפך לנשיא וכהן גדול?",
+            options=["התרסי", "המכבי", "הגדי", "הוופסי"],
+            correct_answer="התרסי",
+            fun_fact="שמעון התרסי היה האחרון שנותר בחיים מבין חמשת בני מתתיהו וביסס את עצמאות ממלכת החשמונאים.",
+        ),
+        HanukkahQuestion(
+            question="באיזו שנה לפני הספירה טוהר בית המקדש בידי יהודה המכבי?",
+            options=["164 לפנה\"ס", "167 לפנה\"ס", "142 לפנה\"ס", "63 לפנה\"ס"],
+            correct_answer="164 לפנה\"ס",
+            fun_fact="המרד פרץ בשנת 167 לפנה\"ס, ולאחר כשלוש שנות לחימה שוחררה ירושלים וטוהר המקדש ב-164 לפנה\"ס.",
+        ),
+        HanukkahQuestion(
+            question="איזה קרב מכריע הוביל להסכם שאפשר את טיהור בית המקדש?",
+            options=["קרב בית צור", "קרב אמאוס", "קרב מעלה לבונה", "קרב חדשה"],
+            correct_answer="קרב בית צור",
+            fun_fact="בקרב בית צור ניצח יהודה המכבי את צבאו של ליסיאס, ולאחר מכן נכנס לירושלים וטיהר את המקדש.",
+        ),
+        HanukkahQuestion(
+            question="מי היה המצביא הסלאוקי שנפל בקרב מול יהודה המכבי ליד חורון?",
+            options=["סרון", "ניקנור", "בקכידס", "גורגיאס"],
+            correct_answer="סרון",
+            fun_fact="בקרב מעלה בית חורון הפתיע יהודה המכבי את צבאו הגדול של סרון והביס אותו.",
+        ),
+        HanukkahQuestion(
+            question="איזו מגילה חיצונית נקשרה במסורת לחג החנוכה ולגבורת נשים?",
